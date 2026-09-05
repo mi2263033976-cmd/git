@@ -1,0 +1,15 @@
+# Keil MDK-ARM 编译产物（Objects 输出目录）
+MDK-ARM/freertos_hello/
+MDK-ARM/startup_stm32f411xe.lst
+
+# Keil 个人设置（JLink / 窗口布局 / 断点），勿提交
+MDK-ARM/JLinkLog.txt
+MDK-ARM/JLinkSettings.ini
+MDK-ARM/DebugConfig/
+MDK-ARM/RTE/
+*.uvguix.*
+*.uvoptx
+
+# VSCode Keil Assistant 插件日志
+MDK-ARM/.vscode/keil-assistant.log
+MDK-ARM/.vscode/uv4.log.lock
