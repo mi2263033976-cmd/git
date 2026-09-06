@@ -25,3 +25,11 @@
  ********************************************************************************/
 
 #include "bsp_key.h"
+
+void bsp_key_init(void)
+{
+    /* Initialize the key GPIOs */
+    // Example: Configure GPIO pins for keys as input with pull-up resistors
+    // HAL_GPIO_Init(KEY1_GPIO_PORT, &KEY1_GPIO_InitStruct);
+    // HAL_GPIO_Init(KEY2_GPIO_PORT, &KEY2_GPIO_InitStruct);
+}
