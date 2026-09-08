@@ -23,3 +23,7 @@
 
 ### 新增
 - 完善`BSP/key/`（bsp_key.c / bsp_key.h）
+- 调用freertos队列实现按键与串口的调试
+ 
+
+  
