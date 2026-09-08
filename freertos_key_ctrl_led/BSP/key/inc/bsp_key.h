@@ -30,12 +30,14 @@
 
 #include <stdint.h>       /* 编译器提供的通用库包含部分 */
 #include "main.h"         /* 引脚宏定义 */
-#include "stm32f4xx_hal.h" /* HAL库包含部分 */
-#include "stm32f4xx_hal_gpio.h" /* HAL库GPIO包含部分 */
+//#include "stm32f4xx_hal.h" /* HAL库包含部分 */
+//#include "stm32f4xx_hal_gpio.h" /* HAL库GPIO包含部分 */
 
 //******************************* Includes *******************************//
 
 //******************************** Defines **********************************//
+
+#define KEY_SCAN_PERIOD_MS    10   /* 调用周期：调用方必须按此节奏调用 */
 
 /* 按键事件枚举：key_scan() 每次调用的返回值 */
 typedef enum

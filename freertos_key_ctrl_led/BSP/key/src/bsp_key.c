@@ -27,7 +27,6 @@
 //******************************** Defines **********************************//
 
 #define KEY_DEBOUNCE_CNT_MAX   2   /* 连续2次一致才确认电平变化(~20ms) */
-#define KEY_SCAN_PERIOD_MS    10   /* 调用周期：调用方必须按此节奏调用 */
 
 //******************************** Defines **********************************//
 
@@ -40,9 +39,9 @@ static uint8_t       g_key_db_cnt     = 0;             /* 消抖连续计数    
 
 //******************************** Functions ********************************//
 
-key_event_t key_scan(void)
+key_event_t key_scan(void)    
 {
-    GPIO_PinState cur_level = GPIO_PIN_SET;
+    GPIO_PinState cur_level = GPIO_PIN_SET; //初始默认赋值为高电平，属于初始兜底，防止变量未初始化乱值。
 
     /* 1. 读取当前电平 */
     cur_level = HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin);
@@ -61,7 +60,7 @@ key_event_t key_scan(void)
         {
             g_key_last_level = cur_level;
             g_key_db_cnt     = 0;
-            return KEY_EVENT_PRESSED;
+            return KEY_EVENT_PRESSED;   //return 1
         }
 
         /* 松开沿：只更新状态，不产生事件 */
@@ -69,7 +68,7 @@ key_event_t key_scan(void)
         g_key_db_cnt     = 0;
     }
 
-    return KEY_EVENT_NONE;
+    return KEY_EVENT_NONE;  //return 0
 }
 
 //******************************** Functions ********************************//
