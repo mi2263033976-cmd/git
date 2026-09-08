@@ -6,7 +6,7 @@
  * @file bsp_key.h
  *
  * @par dependencies
- * - main.h       引脚宏: KEY_Pin / KEY_GPIO_Port */
+ * - main.h       引脚宏: KEY_Pin / KEY_GPIO_Port 
  * - stdint.h
  *
  * @author <BUBUGou> | <班级/部门> | <学校/公司>
@@ -30,8 +30,8 @@
 
 #include <stdint.h>       /* 编译器提供的通用库包含部分 */
 #include "main.h"         /* 引脚宏定义 */
-#include "stm32f1xx_hal.h" /* HAL库包含部分 */
-#include "stm32f1xx_hal_gpio.h" /* HAL库GPIO包含部分 */
+#include "stm32f4xx_hal.h" /* HAL库包含部分 */
+#include "stm32f4xx_hal_gpio.h" /* HAL库GPIO包含部分 */
 
 //******************************* Includes *******************************//
 
@@ -69,3 +69,4 @@ key_event_t key_scan(void);
 //******************************** Declaring ********************************//
 
 #endif /* __BSP_KEY_H__ */
+
