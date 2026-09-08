@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp_key.h"
+#include "bsp_led.h"
 #include "queue.h"  //freertos队列头文件
 
 /* USER CODE END Includes */
@@ -48,6 +49,12 @@ extern UART_HandleTypeDef huart1;
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 QueueHandle_t g_key_queue = NULL;   /* 原生队列句柄，g_ 前缀，初始空 */
+osThreadId_t LedTaskHandle;         /* LED 任务句柄（手写在保留区，Cube 不会删）*/
+const osThreadAttr_t LedTask_attributes = {
+  .name = "LED_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -66,7 +73,7 @@ const osThreadAttr_t KEY_Task_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+void LedTask(void *argument);   /* LED 任务：消费队列消息并翻转 LED */
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);//打印
@@ -114,6 +121,7 @@ void MX_FREERTOS_Init(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
+  LedTaskHandle = osThreadNew(LedTask, NULL, &LedTask_attributes);
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -132,22 +140,10 @@ void MX_FREERTOS_Init(void)
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
-    uint32_t received_value = 0;
-  /* Infinite loop */
+  /* Infinite loop: 队列消费职责已移交 LedTask，此处空转 */
   for (;;)
   {
-      if (NULL == g_key_queue)
-      {
-          vTaskDelay(pdMS_TO_TICKS(10));
-          continue;
-      }
-
-      if (pdTRUE == xQueueReceive(g_key_queue, &received_value,
-                                  pdMS_TO_TICKS(100)))
-      {
-          printf("Key pressed! msg = %lu\r\n",
-                 (unsigned long)received_value);
-      }
+    osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -188,6 +184,42 @@ for (;;)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
+/**
+ * @brief  LED task: consumes queue messages and toggles the LED.
+ * @param  argument: Not used
+ * @retval None
+ */
+void LedTask(void *argument)
+{
+  uint32_t received_value = 0;
+  led_state_t new_led_state = LED_OFF;
+
+  for (;;)
+  {
+      if (NULL == g_key_queue)
+      {
+          vTaskDelay(pdMS_TO_TICKS(10));
+          continue;
+      }
+
+      /* 阻塞等待按键消息（最多 100ms），收到即翻转 LED */
+      if (pdTRUE == xQueueReceive(g_key_queue, &received_value,
+                                  pdMS_TO_TICKS(100)))
+      {
+          new_led_state = led_toggle();
+
+          if (LED_ON == new_led_state)
+          {
+              printf("LED ON\r\n");
+          }
+          else
+          {
+              printf("LED OFF\r\n");
+          }
+      }
+  }
+}
 
 /* USER CODE END Application */
 
