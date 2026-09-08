@@ -1,35 +1,76 @@
-/********************************************************************************
- * Copyright (C) 2024 EternalChip, Inc.(Gmbh) or its affiliates.
+/******************************************************************************
+ * Copyright (C) 2026 <BUBUGou>
  *
- * ALL Rights Reserved.
+ * All Rights Reserved.
  *
  * @file bsp_key.c
  *
  * @par dependencies
- * - bsp_key.h	
- * - stdio.h
- * - stdint.h
+ * - bsp_key.h
  *
- * @author BUBUGou
+ * @author <BUBUGou> | <班级/部门> | <学校/公司>
  *
- * @brief Provide the HAL key of AHT21 and corresponding opetions.
+ * @brief Provide the polling key scan APIs.
  *
  * Processing flow:
  *
- * call directly.
+ * call key_scan() periodically from a task every 10ms.
  *
- * @version V1.0 2026.9.6
+ * @version V1.0 2026-09-07
  *
  * @note 1 tab == 4 spaces!
  *
- ********************************************************************************/
+ *****************************************************************************/
 
 #include "bsp_key.h"
 
-void bsp_key_init(void)
+//******************************** Defines **********************************//
+
+#define KEY_DEBOUNCE_CNT_MAX   2   /* 连续2次一致才确认电平变化(~20ms) */
+#define KEY_SCAN_PERIOD_MS    10   /* 调用周期：调用方必须按此节奏调用 */
+
+//******************************** Defines **********************************//
+
+//******************************** Static variables *************************//
+
+static GPIO_PinState g_key_last_level = GPIO_PIN_SET;  /* 上次确认的稳定电平 */
+static uint8_t       g_key_db_cnt     = 0;             /* 消抖连续计数       */
+
+//******************************** Static variables *************************//
+
+//******************************** Functions ********************************//
+
+key_event_t key_scan(void)
 {
-    /* Initialize the key GPIOs */
-    // Example: Configure GPIO pins for keys as input with pull-up resistors
-    // HAL_GPIO_Init(KEY1_GPIO_PORT, &KEY1_GPIO_InitStruct);
-    // HAL_GPIO_Init(KEY2_GPIO_PORT, &KEY2_GPIO_InitStruct);
+    GPIO_PinState cur_level = GPIO_PIN_SET;
+
+    /* 1. 读取当前电平 */
+    cur_level = HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin);
+
+    /* 2. 与稳定电平一致：计数清零，无事件产生 */
+    if (cur_level == g_key_last_level)
+    {
+        g_key_db_cnt = 0;
+    }
+    /* 3. 电平变化：需连续 KEY_DEBOUNCE_CNT_MAX 次一致才算稳定 */
+    else if (++g_key_db_cnt >= KEY_DEBOUNCE_CNT_MAX)
+    {
+        /* 4. 仅在“松开→按下”下降沿上报一次事件 */
+        if ((GPIO_PIN_SET == g_key_last_level)
+         && (GPIO_PIN_RESET == cur_level))
+        {
+            g_key_last_level = cur_level;
+            g_key_db_cnt     = 0;
+            return KEY_EVENT_PRESSED;
+        }
+
+        /* 松开沿：只更新状态，不产生事件 */
+        g_key_last_level = cur_level;
+        g_key_db_cnt     = 0;
+    }
+
+    return KEY_EVENT_NONE;
 }
+
+//******************************** Functions ********************************//
+
