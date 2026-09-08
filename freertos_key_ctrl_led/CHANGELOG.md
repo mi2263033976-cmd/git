@@ -24,6 +24,7 @@
 ### 新增
 - 完善`BSP/key/`（bsp_key.c / bsp_key.h）
 - 调用freertos队列实现按键与串口的调试
+- 新增 BSP led灯亮灭框架：`BSP/led/`（bsp_led.c / bsp_led.h）
  
 
   
