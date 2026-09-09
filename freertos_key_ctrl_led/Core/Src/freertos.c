@@ -39,6 +39,10 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 extern UART_HandleTypeDef huart1;
+
+static uint8_t g_blink_cnt = 0;        /* 剩余闪烁翻转次数 */
+
+#define KEY_LONG_BLINK_TOGGLES 6       /* 3 次亮灭 = 翻转 6 次 */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -79,7 +83,7 @@ void LedTask(void *argument);   /* LED 任务：消费队列消息并翻转 LED 
 /* USER CODE END FunctionPrototypes */
 
 void StartUsartTask(void *argument);//打印
-void StartTask02(void *argument);//按键扫描
+void KeyTask(void *argument);//按键扫描
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -125,7 +129,7 @@ void MX_FREERTOS_Init(void)
   UsartTaskHandle = osThreadNew(StartUsartTask, NULL, &UsartTask_attributes);
 
   /* creation of KEY_Task */
-  KEY_TaskHandle = osThreadNew(StartTask02, NULL, &KEY_Task_attributes);
+  KEY_TaskHandle = osThreadNew(KeyTask, NULL, &KEY_Task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -149,64 +153,66 @@ void StartUsartTask(void *argument)
 {
 
   /* USER CODE BEGIN StartUsartTask */
-    led_state_t received_value = LED_OFF;
+  key_event_t key_evt = KEY_EVENT_NONE;
   /* 阻塞等待 LED 状态消息，收到后走串口打印（UART 仅由本任务独占，避免多任务打印冲突）*/
   for (;;)
   {
-  if (NULL == g_led_queue)
+    if (NULL == g_led_queue)
+    {
+      printf("led_queue create failed\r\n");
+      Error_Handler();      /* 或断言死循环——失败就别继续启动了 */
+    }
+    if (pdTRUE == xQueueReceive(g_led_queue, &key_evt, pdMS_TO_TICKS(100)))
+    {
+      switch(key_evt)
       {
-          vTaskDelay(pdMS_TO_TICKS(10));
-          continue;
+        case KEY_EVENT_NONE:
+          printf("KEY_EVENT_NONE\r\n");
+          break;
+        case KEY_EVENT_CLICK_PRESSED:
+          printf("KEY_EVENT_CLICK_PRESSED\r\n");
+          break;
+        case KEY_EVENT_LONG_PRESSED:
+          printf("KEY_EVENT_LONG_PRESSED\r\n");
+          break;
+        default:
+          printf("KEY_EVENT_UNKNOWN\r\n");
+          break;
       }
+    }
 
-      if (pdTRUE == xQueueReceive(g_led_queue, &received_value,
-                                  pdMS_TO_TICKS(100)))
-      {
-          if (LED_ON == received_value)
-          {
-              printf("LED ON\r\n");
-          }
-          else
-          {
-              printf("LED OFF\r\n");
-          }
-      }
+      
   }
   /* USER CODE END StartUsartTask */
 }
 
-/* USER CODE BEGIN Header_StartTask02 */
+/* USER CODE BEGIN Header_KeyTask */
 /**
 * @brief Function implementing the KEY_Task thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask02 */
-void StartTask02(void *argument)
+/* USER CODE END Header_KeyTask */
+void KeyTask(void *argument)
 {
-  /* USER CODE BEGIN StartTask02 */
-    key_event_t key_event = KEY_EVENT_NONE;
+  /* USER CODE BEGIN KeyTask */
+  key_event_t key_event = KEY_EVENT_NONE;
   uint32_t    msg_value = 0;
   /* Infinite loop */
 for (;;)
   {
-      key_event = key_scan();
-
-      if (KEY_EVENT_PRESSED == key_event)
-      {
-          msg_value++;
-          if (pdTRUE != xQueueSendToBack(g_key_queue, &msg_value, 0)) //判断传送队列有没有满
-          {
-              printf("queue send failed\r\n");
-          }
-      }
-
-      vTaskDelay(pdMS_TO_TICKS(KEY_SCAN_PERIOD_MS)); 
+    key_event = key_scan();
+    if (KEY_EVENT_NONE != key_event)
+    {
+        /* 原生或 CMSIS 队列 API 均可，保持与工程一致 */
+        xQueueSendToBack(g_key_queue, &key_event, 0);
+    }
+     vTaskDelay(pdMS_TO_TICKS(KEY_SCAN_PERIOD_MS)); 
       /* 任务休眠10ms，之后再次执行按键检测，实现软件消抖的轮询按键 */
       /* pdMS_TO_TICKS(x)，把毫秒时间转换成系统节拍tick计数值。 */
       /* vTaskDelay( ticks ) 延时函数 */
   }
-  /* USER CODE END StartTask02 */
+  /* USER CODE END KeyTask */
 }
 
 /* Private application code --------------------------------------------------*/
@@ -219,26 +225,36 @@ for (;;)
  */
 void LedTask(void *argument)
 {
-  uint32_t received_value = 0;
-  led_state_t new_led_state = LED_OFF;
-
   for (;;)
   {
-      if (NULL == g_key_queue)
+    key_event_t evt = KEY_EVENT_NONE;
+    if (NULL == g_key_queue)
+    {
+     printf("key_queue create failed\r\n");
+      Error_Handler();      /* 或断言死循环——失败就别继续启动了 */
+    }
+    /* 非阻塞等待按键消息， */
+    if (pdTRUE == xQueueReceive(g_key_queue, &evt,0))
+    {
+      if (0 == g_blink_cnt)//翻转
       {
-          vTaskDelay(pdMS_TO_TICKS(10));
-          continue;
-      }
+        if(KEY_EVENT_CLICK_PRESSED == evt)//点按一次
+        {
+          led_toggle();
+        }
+        else if (KEY_EVENT_LONG_PRESSED == evt)//长按一次
+        {
+          g_blink_cnt = KEY_LONG_BLINK_TOGGLES;  /* 3 次亮灭 = 翻转 6 次 */
+        } 
 
-      /* 阻塞等待按键消息（最多 100ms），收到即翻转 LED */
-      if (pdTRUE == xQueueReceive(g_key_queue, &received_value,
-                                  pdMS_TO_TICKS(100)))
-      {
-          new_led_state = led_toggle();
-
-        xQueueSendToBack(g_led_queue, &new_led_state, 0); 
-          /* 发状态给 UartTask */
       }
+    }
+    if (g_blink_cnt > 0)
+    {
+      led_toggle();
+      g_blink_cnt--;
+    }
+    vTaskDelay(pdMS_TO_TICKS(200));  /* 200ms 翻转一次 */
   }
 }
 
