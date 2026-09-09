@@ -10,13 +10,13 @@
  *
  * @author <BUBUGou> | <班级/部门> | <学校/公司>
  *
- * @brief Provide the polling key scan API with click / long-press detection.
+ * @brief Provide the polling key scan APIs.
  *
  * Processing flow:
  *
  * call key_scan() periodically from a task every 10ms.
  *
- * @version V1.1 2026-09-09
+ * @version V1.0 2026-09-07
  *
  * @note 1 tab == 4 spaces!
  *
@@ -48,7 +48,7 @@ key_event_t key_scan(void)
     /* 1. 读取当前电平 */
     cur_level = HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin);
 
-    /* 2.1 处于稳定按下状态：累加按下时长计数 */
+    /* 2.1 与稳定电平一致：计数累加，无事件产生 */
     if (g_press_active && (GPIO_PIN_RESET == g_key_last_level))
     {
         g_press_cnt++;
@@ -72,10 +72,10 @@ key_event_t key_scan(void)
         else if ((GPIO_PIN_RESET == g_key_last_level)
               && (GPIO_PIN_SET == cur_level))
         {
-            if (g_press_active)  /* 处于按下状态才判定（防止误报）*/
+            if(g_press_active)  //真正按下
             {
                 uint32_t press_duration = g_press_cnt * KEY_SCAN_PERIOD_MS;  /* 按下持续时间(ms) */
-                key_event_t evt = KEY_EVENT_NONE;  /* 默认无事件 */
+                uint8_t evt = KEY_EVENT_NONE;//默认无事件
                 if (press_duration >= KEY_LONG_PRESS_MS)
                 {
                     evt = KEY_EVENT_LONG_PRESSED;  /* 长按事件 */
@@ -91,12 +91,12 @@ key_event_t key_scan(void)
                 return evt;           
             }
         }
-        /* 确认电平变化后：更新稳定电平与消抖计数（事件路径已在上面 return，不会到此）*/
+        /* 松开沿：只更新状态，不产生事件 */
         g_key_last_level = cur_level;
         g_key_db_cnt     = 0;
     }
 
-    return KEY_EVENT_NONE;
+    return KEY_EVENT_NONE;  //return 0
 }
 
 //******************************** Functions ********************************//
