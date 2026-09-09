@@ -48,7 +48,9 @@ extern UART_HandleTypeDef huart1;
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-QueueHandle_t g_key_queue = NULL;   /* 原生队列句柄，g_ 前缀，初始空 */
+QueueHandle_t g_key_queue = NULL;   /* 按键队列句柄，g_ 前缀，初始空 */
+QueueHandle_t g_led_queue = NULL;   /* LED 队列句柄，g_ 前缀，初始空 */
+
 osThreadId_t LedTaskHandle;         /* LED 任务句柄（手写在保留区，Cube 不会删）*/
 const osThreadAttr_t LedTask_attributes = {
   .name = "LED_Task",
@@ -56,10 +58,10 @@ const osThreadAttr_t LedTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE END Variables */
-/* Definitions for defaultTask */
-osThreadId_t defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = {
-  .name = "defaultTask",
+/* Definitions for UsartTask */
+osThreadId_t UsartTaskHandle;
+const osThreadAttr_t UsartTask_attributes = {
+  .name = "Usart_Task",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
@@ -76,7 +78,7 @@ const osThreadAttr_t KEY_Task_attributes = {
 void LedTask(void *argument);   /* LED 任务：消费队列消息并翻转 LED */
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void *argument);//打印
+void StartUsartTask(void *argument);//打印
 void StartTask02(void *argument);//按键扫描
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -93,6 +95,12 @@ void MX_FREERTOS_Init(void)
   if (NULL == g_key_queue)
   {
       printf("key_queue create failed\r\n");
+  }
+
+  g_led_queue = xQueueCreate(10, sizeof(led_state_t));
+  if (NULL == g_led_queue)
+  {
+      printf("led_queue create failed\r\n");
   }
   /* USER CODE END Init */
 
@@ -113,8 +121,8 @@ void MX_FREERTOS_Init(void)
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  /* creation of UsartTask */
+  UsartTaskHandle = osThreadNew(StartUsartTask, NULL, &UsartTask_attributes);
 
   /* creation of KEY_Task */
   KEY_TaskHandle = osThreadNew(StartTask02, NULL, &KEY_Task_attributes);
@@ -130,22 +138,41 @@ void MX_FREERTOS_Init(void)
 
 }
 
-/* USER CODE BEGIN Header_StartDefaultTask */
+/* USER CODE BEGIN Header_StartUsartTask */
 /**
-  * @brief  Function implementing the defaultTask thread.
+  * @brief  Function implementing the UsartTask thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
+/* USER CODE END Header_StartUsartTask */
+void StartUsartTask(void *argument)
 {
-  /* USER CODE BEGIN StartDefaultTask */
-  /* Infinite loop: 队列消费职责已移交 LedTask，此处空转 */
+
+  /* USER CODE BEGIN StartUsartTask */
+    led_state_t received_value = LED_OFF;
+  /* 阻塞等待 LED 状态消息，收到后走串口打印（UART 仅由本任务独占，避免多任务打印冲突）*/
   for (;;)
   {
-    osDelay(1);
+  if (NULL == g_led_queue)
+      {
+          vTaskDelay(pdMS_TO_TICKS(10));
+          continue;
+      }
+
+      if (pdTRUE == xQueueReceive(g_led_queue, &received_value,
+                                  pdMS_TO_TICKS(100)))
+      {
+          if (LED_ON == received_value)
+          {
+              printf("LED ON\r\n");
+          }
+          else
+          {
+              printf("LED OFF\r\n");
+          }
+      }
   }
-  /* USER CODE END StartDefaultTask */
+  /* USER CODE END StartUsartTask */
 }
 
 /* USER CODE BEGIN Header_StartTask02 */
@@ -209,14 +236,8 @@ void LedTask(void *argument)
       {
           new_led_state = led_toggle();
 
-          if (LED_ON == new_led_state)
-          {
-              printf("LED ON\r\n");
-          }
-          else
-          {
-              printf("LED OFF\r\n");
-          }
+        xQueueSendToBack(g_led_queue, &new_led_state, 0); 
+          /* 发状态给 UartTask */
       }
   }
 }
