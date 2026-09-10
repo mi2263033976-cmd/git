@@ -32,8 +32,10 @@
 
 //******************************** Static variables *************************//
 
-static GPIO_PinState g_key_last_level = GPIO_PIN_SET;  /* 上次确认的稳定电平 */
-static uint8_t       g_key_db_cnt     = 0;             /* 消抖连续计数       */
+static GPIO_PinState g_key_last_level = GPIO_PIN_SET;  /* 稳定电平 */
+static uint8_t       g_key_db_cnt     = 0;             /* 消抖计数 */
+static uint8_t       g_press_active   = 0;             /* 1=正处于按下 */
+static uint8_t       g_press_cnt      = 0;             /* 按下期间调用次数 */
 
 //******************************** Static variables *************************//
 
@@ -46,7 +48,12 @@ key_event_t key_scan(void)
     /* 1. 读取当前电平 */
     cur_level = HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin);
 
-    /* 2. 与稳定电平一致：计数清零，无事件产生 */
+    /* 2.1 与稳定电平一致：计数累加，无事件产生 */
+    if (g_press_active && (GPIO_PIN_RESET == g_key_last_level))
+    {
+        g_press_cnt++;
+    } 
+    /* 2.2 与稳定电平一致：计数清零，无事件产生 */
     if (cur_level == g_key_last_level)
     {
         g_key_db_cnt = 0;
@@ -54,15 +61,36 @@ key_event_t key_scan(void)
     /* 3. 电平变化：需连续 KEY_DEBOUNCE_CNT_MAX 次一致才算稳定 */
     else if (++g_key_db_cnt >= KEY_DEBOUNCE_CNT_MAX)
     {
-        /* 4. 仅在“松开→按下”下降沿上报一次事件 */
+        /* 4. 按下按键 */
         if ((GPIO_PIN_SET == g_key_last_level)
          && (GPIO_PIN_RESET == cur_level))
         {
-            g_key_last_level = cur_level;
-            g_key_db_cnt     = 0;
-            return KEY_EVENT_PRESSED;   //return 1
+            g_press_active = 1;  /* 标记按下 */
+            g_press_cnt     = 0;   /* 按下计数清零 */        
         }
-
+        /* 5. 松开按键*/
+        else if ((GPIO_PIN_RESET == g_key_last_level)
+              && (GPIO_PIN_SET == cur_level))
+        {
+            if(g_press_active)  //真正按下
+            {
+                uint32_t press_duration = g_press_cnt * KEY_SCAN_PERIOD_MS;  /* 按下持续时间(ms) */
+                uint8_t evt = KEY_EVENT_NONE;//默认无事件
+                if (press_duration >= KEY_LONG_PRESS_MS)
+                {
+                    evt = KEY_EVENT_LONG_PRESSED;  /* 长按事件 */
+                }
+                else
+                {
+                    evt = KEY_EVENT_CLICK_PRESSED;  /* 单击事件 */
+                }
+                g_press_active = 0;
+                g_press_cnt    = 0;
+                g_key_last_level = cur_level;
+                g_key_db_cnt     = 0;
+                return evt;           
+            }
+        }
         /* 松开沿：只更新状态，不产生事件 */
         g_key_last_level = cur_level;
         g_key_db_cnt     = 0;
