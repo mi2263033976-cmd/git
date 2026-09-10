@@ -99,14 +99,12 @@ void MX_FREERTOS_Init(void)
   if (NULL == g_key_queue)
   {
       printf("key_queue create failed\r\n");
-      Error_Handler();      /* 创建失败：调度器启动前直接停机（fail-fast）*/
   }
 
   g_led_queue = xQueueCreate(10, sizeof(key_event_t));
   if (NULL == g_led_queue)
   {
       printf("led_queue create failed\r\n");
-      Error_Handler();
   }
   /* USER CODE END Init */
 
@@ -156,9 +154,14 @@ void StartUsartTask(void *argument)
 
   /* USER CODE BEGIN StartUsartTask */
   key_event_t key_evt = KEY_EVENT_NONE;
-  /* 阻塞等待按键事件消息，收到后走串口打印（UART 仅由本任务独占，避免多任务打印冲突）*/
+  /* 阻塞等待 LED 状态消息，收到后走串口打印（UART 仅由本任务独占，避免多任务打印冲突）*/
   for (;;)
   {
+    if (NULL == g_led_queue)
+    {
+      printf("led_queue create failed\r\n");
+      Error_Handler();      /* 或断言死循环——失败就别继续启动了 */
+    }
     if (pdTRUE == xQueueReceive(g_led_queue, &key_evt, pdMS_TO_TICKS(100)))
     {
       switch(key_evt)
@@ -194,8 +197,8 @@ void KeyTask(void *argument)
 {
   /* USER CODE BEGIN KeyTask */
   key_event_t key_event = KEY_EVENT_NONE;
-
-  for (;;)
+  /* Infinite loop */
+for (;;)
   {
     key_event = key_scan();
     if (KEY_EVENT_NONE != key_event)
@@ -203,7 +206,7 @@ void KeyTask(void *argument)
         /* 原生或 CMSIS 队列 API 均可，保持与工程一致 */
         xQueueSendToBack(g_key_queue, &key_event, 0);
     }
-    vTaskDelay(pdMS_TO_TICKS(KEY_SCAN_PERIOD_MS)); 
+     vTaskDelay(pdMS_TO_TICKS(KEY_SCAN_PERIOD_MS)); 
       /* 任务休眠10ms，之后再次执行按键检测，实现软件消抖的轮询按键 */
       /* pdMS_TO_TICKS(x)，把毫秒时间转换成系统节拍tick计数值。 */
       /* vTaskDelay( ticks ) 延时函数 */
@@ -221,21 +224,25 @@ void KeyTask(void *argument)
  */
 void LedTask(void *argument)
 {
-  key_event_t evt = KEY_EVENT_NONE;
-
   for (;;)
   {
-    /* 非阻塞取按键事件（timeout=0），不阻塞下面的闪烁节拍 */
-    if (pdTRUE == xQueueReceive(g_key_queue, &evt, 0))
+    key_event_t evt = KEY_EVENT_NONE;
+    if (NULL == g_key_queue)
     {
-      if (0 == g_blink_cnt)      /* 空闲（未在闪烁）才响应新按键；闪烁中忽略 */
+     printf("key_queue create failed\r\n");
+      Error_Handler();      /* 或断言死循环——失败就别继续启动了 */
+    }
+    /* 非阻塞等待按键消息， */
+    if (pdTRUE == xQueueReceive(g_key_queue, &evt,0))
+    {
+      if (0 == g_blink_cnt)//翻转
       {
-        if (KEY_EVENT_CLICK_PRESSED == evt)      /* 单击一次 */
+        if(KEY_EVENT_CLICK_PRESSED == evt)//点按一次
         {
           led_toggle();
           xQueueSendToBack(g_led_queue, &evt, 0);   /* 发打印指示 */
         }
-        else if (KEY_EVENT_LONG_PRESSED == evt)  /* 长按一次 */
+        else if (KEY_EVENT_LONG_PRESSED == evt)//长按一次
         {
           g_blink_cnt = KEY_LONG_BLINK_TOGGLES;  /* 3 次亮灭 = 翻转 6 次 */
           xQueueSendToBack(g_led_queue, &evt, 0);   /* 发打印指示 */
