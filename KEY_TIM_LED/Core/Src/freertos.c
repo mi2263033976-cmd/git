@@ -25,7 +25,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usart.h"      /* huart1 */
+#include <stdio.h>
+#include <stdarg.h>
+#include "bsp_key.h"   /* key_event_t */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -106,7 +109,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the queue(s) */
   /* creation of KEY_Queue */
-  KEY_QueueHandle = osMessageQueueNew (16, sizeof(uint16_t), &KEY_Queue_attributes);
+  KEY_QueueHandle = osMessageQueueNew (16, sizeof(key_event_t), &KEY_Queue_attributes);
 
   /* creation of LED_Queue */
   LED_QueueHandle = osMessageQueueNew (16, sizeof(uint16_t), &LED_Queue_attributes);
@@ -170,6 +173,23 @@ void Ledtask(void *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
+/* 轻量日志：vsnprintf 拼整行再一次性发送（不用 printf 重定向、不依赖 MicroLIB） */
+void log_printf(const char *fmt, ...)
+{
+    char    buf[96];
+    va_list ap;
+    int     n;
+
+    va_start(ap, fmt);
+    n = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+
+    if (n > 0)
+    {
+        (void)HAL_UART_Transmit(&huart1, (uint8_t *)buf, (uint16_t)n, 100);
+    }
+}
 
 /* USER CODE END Application */
 

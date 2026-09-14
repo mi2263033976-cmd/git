@@ -24,15 +24,15 @@
 
 ### 实现步骤（计划）
 
-- [ ] Step 0：CubeMX 建工程（Toolchain = MDK-ARM V5）→ 编译下载，确认 LED 初始灭
+> **代码组织（已定）**：BSP 分层 —— `BSP/key`（按键中断版）、`BSP/led`（LED + TIM2 中断处理），队列由 BSP 模块**自建**（绕开 CubeMX 队列元素类型 `sizeof` 的手改维护问题）；CubeMX 生成的任务入口 `Key_task` / `Ledtask` 只做转调。
+
+- [ ] Step 0：Keil 把 `BSP/key`、`BSP/led` 加入工程 + 两行 include 路径；编译（0 error）下载确认 LED 初始灭
 - [ ] Step 1：串口打通（USB-TTL 接 PA9/PA10），`log_printf()` 输出 `boot`
-- [ ] Step 2：定义结构体事件 `key_evt_t { tick, edge }` 与 `LED_Queue`，编译确认 `sizeof` 生效
-- [ ] Step 3：写 EXTI 回调（记 tick + 切触发沿 + 发队列），先用串口验证 FALL/RISE 两条日志
-- [ ] Step 4：写 `KEYTask`（t2−t1 判单击/长按；`dt < 20ms` 毛刺丢弃），验证日志里 dt 与判定
-- [ ] Step 5：写 TIM2 中断处理 `led_blink_tick_handler()`（放在 `main.c` 的 `USER CODE BEGIN Callback 1` 调用）+ 临界区版 `led_blink_start()`
-- [ ] Step 6：写 `LEDTask`（收命令 → 启动 TIM2），验证短按闪 1 次、长按闪 10 次
-- [ ] Step 7：全量验证 + 边界测试（快速连按 / 按住不放 / 闪烁中再按）
-- [ ] Step 8：git 提交
+- [ ] Step 2：`BSP/led` 补 `led_blink_start()`（临界区版）+ `led_blink_tick_handler()`；`main.c` 的 `USER CODE BEGIN Callback 1` 挂 TIM2 分支
+- [ ] Step 3：`BSP/key` 定义 `key_evt_t { tick, edge }` + 切沿宏 + `HAL_GPIO_EXTI_Callback()`（记 tick / 切沿 / 发队列），串口验证 FALL/RISE
+- [ ] Step 4：`key_task_func()`：`t2−t1` 判单击/长按；`dt < 20ms` 毛刺丢弃；串口验证 `dt -> CLICK/LONG`
+- [ ] Step 5：`led_task_func()` 收命令 → 启动 TIM2；验证短按闪 1 次、长按闪 10 次
+- [ ] Step 6：全量验证 + 边界测试（快速连按 / 按住不放 / 闪烁中再按）+ git 提交
 
 ### 设计要点（与中断版旧工程 `Key_ISR_ctrl_led` 的区别）
 
@@ -46,3 +46,13 @@
 
 - 串口验证需外接 USB-TTL 模块（板上 Type-C 直连 MCU，无 USB-TTL 芯片）
 - 闪烁期间的新按键按设计被忽略（不打断当前闪烁）
+
+### 待优化（工程完成后再做，向企业级靠拢）
+
+> 本次先"跑通优先"（用户定：**完成工程后再回头优化**）。以下为已识别的优化项，按性价比排序：
+
+1. **日志**：`log_printf()` 加 `osMutex`（防多任务日志交叉）+ `LOG_ENABLE` 编译开关；进一步可做 `UartTask` + 队列独占串口，或环形缓冲 + `HAL_UART_Transmit_DMA`
+2. **分层规范**：BSP 模块补状态枚举（`KEY_OK` / `LED_OK` …）、统一 doxygen 注释模板、函数命名规范（向参考工程 `EternalChip` 风格靠拢）
+3. **健壮性**：启动顺序竞态（队列改到 init 阶段创建、ISR 里去掉 `NULL` 判断）、错误返回值不再一律 `(void)` 吞掉、关键参数校验/断言
+4. **配置一致性**：RTOS 对象统一"在 CubeMX 里配"或"在代码里建"，二选一（目前 CubeMX 生成的 `KEY_Queue` / `LED_Queue` 已闲置）
+5. **工程化**：README 补构建/烧录说明、静态检查（Cppcheck）、版本号与 CHANGELOG 规范
