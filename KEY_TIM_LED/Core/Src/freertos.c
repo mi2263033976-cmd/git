@@ -187,7 +187,8 @@ void log_printf(const char *fmt, ...)
 
     if (n > 0)
     {
-        (void)HAL_UART_Transmit(&huart1, (uint8_t *)buf, (uint16_t)n, 100);
+      uint16_t len = (n < (int)sizeof(buf)) ? (uint16_t)n : (uint16_t)(sizeof(buf) - 1);
+      (void)HAL_UART_Transmit(&huart1, (uint8_t *)buf, len, 100);
     }
 }
 
