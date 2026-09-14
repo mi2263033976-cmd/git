@@ -21,8 +21,11 @@
  * @note 1 tab == 4 spaces!
  *
  *****************************************************************************/
-
+#include "main.h"         /* 引脚宏定义 (LED_Pin / LED_GPIO_Port) */
 #include "bsp_led.h"
+#include "tim.h"           /* TIM_HandleTypeDef htim2; */
+#include "freertos.h"       /* FreeRTOS API: osMessageQueueNew() / osThreadNew() / osDelay() */
+#include "task.h"
 
 //******************************** Defines **********************************//
 
@@ -31,6 +34,7 @@
 #define LED_ON_LEVEL     GPIO_PIN_RESET
 #define LED_OFF_LEVEL    GPIO_PIN_SET
 
+static volatile uint16_t g_blink_toggles = 0U  ;
 //******************************** Defines **********************************//
 
 //******************************** Functions ********************************//
@@ -75,6 +79,29 @@ led_state_t led_toggle(void)
     }
 
     return led_get();
+}
+
+void led_blink_start(uint16_t toggles)
+{
+    taskENTER_CRITICAL();                  /* 挡住 TIM2 中断，避免与 ISR 的递减竞争 */
+    HAL_TIM_Base_Stop_IT(&htim2);          /* ① 停表 + 关更新中断 */
+    g_blink_toggles = toggles;             /* ② 写入剩余翻转次数 */
+    __HAL_TIM_SET_COUNTER(&htim2, 0U);     /* ③ 计数器清零：第一次翻转严格在 100ms 后 */
+    HAL_TIM_Base_Start_IT(&htim2);         /* ④ 启动 */
+    taskEXIT_CRITICAL();
+}
+
+void led_blink_tick_handler(void)
+{
+    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);   /* 5Hz：每 100ms 翻转一次 */
+    if (g_blink_toggles > 0U)
+    {
+        g_blink_toggles--;
+    }
+    if (0U == g_blink_toggles)
+    {
+        HAL_TIM_Base_Stop_IT(&htim2);             /* 闪完自停：不占中断 */
+    }
 }
 
 //******************************** Functions ********************************//

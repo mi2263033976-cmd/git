@@ -28,10 +28,16 @@
 //******************************* Includes *******************************//
 
 #include "main.h"         /* 引脚宏定义 (LED_Pin / LED_GPIO_Port) */
+#include <stdint.h>       /* 编译器提供的通用库包含部分 */
+#include "tim.h"           /* TIM_HandleTypeDef htim2; */
+#include "freertos.h"       /* FreeRTOS API: osMessageQueueNew() / osThreadNew() / osDelay() */
+#include "task.h"
 
 //******************************* Includes *******************************//
 
 //******************************** Defines **********************************//
+#define LED_LONG_TOGGLE 20U
+#define LED_CLICK_TOGGLE 2U
 
 /* LED 状态枚举 */
 typedef enum
@@ -40,6 +46,8 @@ typedef enum
     LED_ON        = 1,          /* 点亮                          */
     LED_RESERVED  = 0x7FFFFFFF  /* Reserved                      */
 } led_state_t;
+
+
 
 //******************************** Defines **********************************//
 
@@ -85,6 +93,9 @@ led_state_t led_set(led_state_t led_state);
  *
  */
 led_state_t led_toggle(void);
+
+void led_blink_start(uint16_t toggles);
+void led_blink_tick_handler(void);
 
 //******************************** Declaring ********************************//
 

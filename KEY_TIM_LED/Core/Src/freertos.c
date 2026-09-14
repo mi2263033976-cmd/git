@@ -26,9 +26,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usart.h"      /* huart1 */
+#include "bsp_key.h"   /* key_event_t */
+#include "bsp_led.h"   /* led_state_t */
 #include <stdio.h>
 #include <stdarg.h>
-#include "bsp_key.h"   /* key_event_t */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -145,6 +146,7 @@ void MX_FREERTOS_Init(void) {
 void Key_task(void *argument)
 {
   /* USER CODE BEGIN Key_task */
+  led_blink_start(LED_LONG_TOGGLE);
   /* Infinite loop */
   for(;;)
   {
@@ -163,6 +165,7 @@ void Key_task(void *argument)
 void Ledtask(void *argument)
 {
   /* USER CODE BEGIN Ledtask */
+
   /* Infinite loop */
   for(;;)
   {

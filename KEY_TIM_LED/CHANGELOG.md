@@ -26,9 +26,9 @@
 
 > **代码组织（已定）**：BSP 分层 —— `BSP/key`（按键中断版）、`BSP/led`（LED + TIM2 中断处理），队列由 BSP 模块**自建**（绕开 CubeMX 队列元素类型 `sizeof` 的手改维护问题）；CubeMX 生成的任务入口 `Key_task` / `Ledtask` 只做转调。
 
-- [ ] Step 0：Keil 把 `BSP/key`、`BSP/led` 加入工程 + 两行 include 路径；编译（0 error）下载确认 LED 初始灭
-- [ ] Step 1：串口打通（USB-TTL 接 PA9/PA10），`log_printf()` 输出 `boot`
-- [ ] Step 2：`BSP/led` 补 `led_blink_start()`（临界区版）+ `led_blink_tick_handler()`；`main.c` 的 `USER CODE BEGIN Callback 1` 挂 TIM2 分支
+- [x] Step 0：Keil 把 `BSP/key`、`BSP/led` 加入工程 + 两行 include 路径；编译（0 error）下载确认 LED 初始灭
+- [x] Step 1：串口打通（USB-TTL 接 PA9/PA10），`log_printf()` 输出 `boot`
+- [x] Step 2：`BSP/led` 补 `led_blink_start()`（临界区版）+ `led_blink_tick_handler()`；`main.c` 的 `USER CODE BEGIN Callback 1` 挂 TIM2 分支
 - [ ] Step 3：`BSP/key` 定义 `key_evt_t { tick, edge }` + 切沿宏 + `HAL_GPIO_EXTI_Callback()`（记 tick / 切沿 / 发队列），串口验证 FALL/RISE
 - [ ] Step 4：`key_task_func()`：`t2−t1` 判单击/长按；`dt < 20ms` 毛刺丢弃；串口验证 `dt -> CLICK/LONG`
 - [ ] Step 5：`led_task_func()` 收命令 → 启动 TIM2；验证短按闪 1 次、长按闪 10 次
