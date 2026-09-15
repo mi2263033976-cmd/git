@@ -146,7 +146,8 @@ void MX_FREERTOS_Init(void) {
 void Key_task(void *argument)
 {
   /* USER CODE BEGIN Key_task */
-  led_blink_start(LED_LONG_TOGGLE);
+  key_task_func(NULL);   /* 任务函数在 bsp_key.c 里实现，方便移植 */
+
   /* Infinite loop */
   for(;;)
   {
@@ -165,7 +166,7 @@ void Key_task(void *argument)
 void Ledtask(void *argument)
 {
   /* USER CODE BEGIN Ledtask */
-
+  led_blink_start(LED_LONG_TOGGLE);
   /* Infinite loop */
   for(;;)
   {

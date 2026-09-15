@@ -28,75 +28,71 @@
 
 #define KEY_DEBOUNCE_CNT_MAX   2   /* 连续2次一致才确认电平变化(~20ms) */
 
+
+/* EXTI 触发方向由两个寄存器控制：
+   RTSR —— Rising Trigger Selection（哪位=1 就使能哪个引脚的上升沿）
+   FTSR —— Falling Trigger Selection（下降沿）
+   这里"改成只认某一个沿"，就是"使能一个、清掉另一个"。 */
+#define KEY_EXTI_SET_FALLING()  do { EXTI->FTSR |=  KEY_Pin; EXTI->RTSR &= ~KEY_Pin; } while (0)
+#define KEY_EXTI_SET_RISING()   do { EXTI->RTSR |=  KEY_Pin; EXTI->FTSR &= ~KEY_Pin; } while (0)
+
 //******************************** Defines **********************************//
 
 //******************************** Static variables *************************//
 
-static GPIO_PinState g_key_last_level = GPIO_PIN_SET;  /* 稳定电平 */
-static uint8_t       g_key_db_cnt     = 0;             /* 消抖计数 */
-static uint8_t       g_press_active   = 0;             /* 1=正处于按下 */
-static uint8_t       g_press_cnt      = 0;             /* 按下期间调用次数 */
 
 //******************************** Static variables *************************//
 
 //******************************** Functions ********************************//
+osMessageQueueId_t key_queue = NULL;
 
-key_event_t key_scan(void)    
+/* 由 HAL 调用：库里的 HAL_GPIO_EXTI_IRQHandler() 会先清 pending 位，再回调这里 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    GPIO_PinState cur_level = GPIO_PIN_SET; //初始默认赋值为高电平，属于初始兜底，防止变量未初始化乱值。
+    if (KEY_Pin == GPIO_Pin)                 /* ① 共享回调，必须判引脚 */
+    {
+        key_event_t evt;
+        evt.tick = osKernelGetTickCount();   /* ② 取边沿时刻（ISR 安全） */
 
-    /* 1. 读取当前电平 */
-    cur_level = HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin);
-
-    /* 2.1 与稳定电平一致：计数累加，无事件产生 */
-    if (g_press_active && (GPIO_PIN_RESET == g_key_last_level))
-    {
-        g_press_cnt++;
-    } 
-    /* 2.2 与稳定电平一致：计数清零，无事件产生 */
-    if (cur_level == g_key_last_level)
-    {
-        g_key_db_cnt = 0;
-    }
-    /* 3. 电平变化：需连续 KEY_DEBOUNCE_CNT_MAX 次一致才算稳定 */
-    else if (++g_key_db_cnt >= KEY_DEBOUNCE_CNT_MAX)
-    {
-        /* 4. 按下按键 */
-        if ((GPIO_PIN_SET == g_key_last_level)
-         && (GPIO_PIN_RESET == cur_level))
+        if (0U == (EXTI->FTSR & KEY_Pin))    /* ③ 现在"在等上升沿"？→ 那这次是松开 */
         {
-            g_press_active = 1;  /* 标记按下 */
-            g_press_cnt     = 0;   /* 按下计数清零 */        
+            evt.edge = KEY_EDGE_RISE;
+            KEY_EXTI_SET_FALLING();          /* 切回下降沿，等下一次按下 */
         }
-        /* 5. 松开按键*/
-        else if ((GPIO_PIN_RESET == g_key_last_level)
-              && (GPIO_PIN_SET == cur_level))
+        else                                 /* 现在"在等下降沿" → 这次是按下 */
         {
-            if(g_press_active)  //真正按下
-            {
-                uint32_t press_duration = g_press_cnt * KEY_SCAN_PERIOD_MS;  /* 按下持续时间(ms) */
-                uint8_t evt = KEY_EVENT_NONE;//默认无事件
-                if (press_duration >= KEY_LONG_PRESS_MS)
-                {
-                    evt = KEY_EVENT_LONG_PRESSED;  /* 长按事件 */
-                }
-                else
-                {
-                    evt = KEY_EVENT_CLICK_PRESSED;  /* 单击事件 */
-                }
-                g_press_active = 0;
-                g_press_cnt    = 0;
-                g_key_last_level = cur_level;
-                g_key_db_cnt     = 0;
-                return evt;           
-            }
+            evt.edge = KEY_EDGE_FALL;
+            KEY_EXTI_SET_RISING();           /* 切走：抖动期间不再有任何沿可触发 */
         }
-        /* 松开沿：只更新状态，不产生事件 */
-        g_key_last_level = cur_level;
-        g_key_db_cnt     = 0;
-    }
 
-    return KEY_EVENT_NONE;  //return 0
+        if (NULL != key_queue)               /* ④ 队列没建好就丢弃（防启动竞态） */
+        {
+            (void)osMessageQueuePut(key_queue, &evt, 0U, 0U);   /* ⑤ 发事件，不等待 */
+        }
+    }
+}
+
+void key_task_func(void *argument)
+{
+    key_event_t evt;
+    (void)argument;                                  /* 本任务不用入参，显式忽略 */
+
+    /* 建队列：8 个事件、每个 sizeof(key_evt_t) 字节 */
+    key_queue = osMessageQueueNew(8U, sizeof(key_event_t), NULL);
+
+    for (;;)
+    {
+        /* 阻塞等事件：没按键时任务睡着，CPU 占用 0 */
+        if (osOK != osMessageQueueGet(key_queue, &evt, NULL, osWaitForever))
+        {
+            continue;
+        }
+
+        /* 本步先只打印，验证"事件能出来、时刻对不对"；判定逻辑留 Step 4 */
+        log_printf("[KEY] %s t=%lu\r\n",
+                   (KEY_EDGE_FALL == evt.edge) ? "FALL" : "RISE",
+                   (unsigned long)evt.tick);
+    }
 }
 
 //******************************** Functions ********************************//

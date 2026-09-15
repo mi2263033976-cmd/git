@@ -29,22 +29,26 @@
 
 #include <stdint.h>       /* 编译器提供的通用库包含部分 */
 #include "main.h"         /* 引脚宏定义 */
+#include "cmsis_os.h"      /* FreeRTOS API: osMessageQueueNew() / osThreadNew() / osDelay() */
+
 
 //******************************* Includes *******************************//
 
 //******************************** Defines **********************************//
+typedef enum
+{
+    KEY_EDGE_FALL = 0,          /* 按下沿(下降沿) */
+    KEY_EDGE_RISE = 1,          /* 松开沿(上升沿) */
+} key_edge_t;   
+
+typedef struct
+{
+    key_edge_t edge;               /* 按键沿类型 */
+    uint32_t    tick;          /* 该边沿发生的系统时刻（1 tick = 1ms） */
+} key_event_t;
 
 #define KEY_SCAN_PERIOD_MS      10   /* 调用周期(ms)：调用方须按此节奏调用 */
 #define KEY_LONG_PRESS_MS      1000   /* 长按阈值(ms)：按下超过该值判长按 */
-
-/* 按键事件枚举：key_scan() 每次调用的返回值 */
-typedef enum
-{
-    KEY_EVENT_NONE          = 0,          /* 无事件：未按下、松开后非点击/长按等 */
-    KEY_EVENT_CLICK_PRESSED = 1,          /* 单击事件：按下后快速松开            */
-    KEY_EVENT_LONG_PRESSED  = 2,          /* 长按事件：按住超过阈值后松开        */
-    KEY_EVENT_RESERVED      = 0x7FFFFFFF  /* Reserved                           */
-} key_event_t;
 
 //******************************** Defines **********************************//
 
@@ -67,7 +71,7 @@ typedef enum
  *                       KEY_EVENT_NONE.
  *
  */
-key_event_t key_scan(void);
+void key_task_func(void *argument);
 
 //******************************** Declaring ********************************//
 
