@@ -17,3 +17,6 @@ MDK-ARM/.vscode/*.lock
 # 旧工具链残留（已改用 MDK-ARM）：整个 EWARM 目录不入库，本地可随时删除
 # 如需 IAR 工程：CubeMX 里 Toolchain 改回 EWARM 重新 GENERATE 即可
 EWARM/
+
+# 编译日志（每次编译重写，不入库）
+MDK-ARM/build.log
