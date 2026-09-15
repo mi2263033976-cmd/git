@@ -75,23 +75,41 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 void key_task_func(void *argument)
 {
     key_event_t evt;
-    (void)argument;                                  /* 本任务不用入参，显式忽略 */
+    key_event_t press_evt = { .edge = KEY_EDGE_FALL, .tick = 0U };
+    uint8_t     has_press = 0U;            /* 状态：0=等按下，1=已按下、等松开 */
+    (void)argument;
 
-    /* 建队列：8 个事件、每个 sizeof(key_evt_t) 字节 */
     key_queue = osMessageQueueNew(8U, sizeof(key_event_t), NULL);
 
     for (;;)
     {
-        /* 阻塞等事件：没按键时任务睡着，CPU 占用 0 */
+        /* 阻塞等事件：没按键时任务睡着 */
         if (osOK != osMessageQueueGet(key_queue, &evt, NULL, osWaitForever))
         {
             continue;
         }
 
-        /* 本步先只打印，验证"事件能出来、时刻对不对"；判定逻辑留 Step 4 */
-        log_printf("[KEY] %s t=%lu\r\n",
-                   (KEY_EDGE_FALL == evt.edge) ? "FALL" : "RISE",
-                   (unsigned long)evt.tick);
+        /* 状态机：按下 → 只记时刻 */
+        if ((KEY_EDGE_FALL == evt.edge) && (0U == has_press))
+        {
+            press_evt = evt;                       /* t1 = evt.tick */
+            has_press = 1U;
+        }
+        /* 状态机：松开 → 判定（本步只打印，Step 5 再发给 LED） */
+        else if ((KEY_EDGE_RISE == evt.edge) && (has_press))
+        {
+            uint32_t dt = evt.tick - press_evt.tick;   /* t2 − t1（无符号减法） */
+            has_press = 0U;
+
+            if (dt < KEY_GLITCH_MS)                    /* 抖动造出的假"按下-松开" */
+            {
+                continue;
+            }
+
+            log_printf("[KEY] dt=%lu -> %s\r\n",
+                       (unsigned long)dt,
+                       (dt >= KEY_LONG_PRESS_MS) ? "LONG" : "CLICK");
+        }
     }
 }
 

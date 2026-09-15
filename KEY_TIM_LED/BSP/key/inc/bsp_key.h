@@ -47,8 +47,8 @@ typedef struct
     uint32_t    tick;          /* 该边沿发生的系统时刻（1 tick = 1ms） */
 } key_event_t;
 
-#define KEY_SCAN_PERIOD_MS      10   /* 调用周期(ms)：调用方须按此节奏调用 */
 #define KEY_LONG_PRESS_MS      1000   /* 长按阈值(ms)：按下超过该值判长按 */
+#define KEY_GLITCH_MS       20U     /* 小于它的"按下-松开"对视为抖动，丢弃 */
 
 //******************************** Defines **********************************//
 
