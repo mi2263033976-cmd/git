@@ -94,7 +94,7 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	log_printf("boot\r\n");          /* 串口能收到 boot 就算打通 */
-  HAL_TIM_Base_Start_IT(&htim2);      /* 顺手开 TIM2 更新中断，Step 2 用 */
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
