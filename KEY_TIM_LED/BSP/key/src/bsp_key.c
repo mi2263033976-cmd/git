@@ -99,6 +99,7 @@ void key_task_func(void *argument)
         else if ((KEY_EDGE_RISE == evt.edge) && (has_press))
         {
             uint32_t dt = evt.tick - press_evt.tick;   /* t2 − t1（无符号减法） */
+            led_cmd_t c;
             has_press = 0U;
 
             if (dt < KEY_GLITCH_MS)                    /* 抖动造出的假"按下-松开" */
@@ -106,9 +107,14 @@ void key_task_func(void *argument)
                 continue;
             }
 
-            log_printf("[KEY] dt=%lu -> %s\r\n",
-                       (unsigned long)dt,
-                       (dt >= KEY_LONG_PRESS_MS) ? "LONG" : "CLICK");
+            c.cmd = (dt >= KEY_LONG_PRESS_MS) ? LED_CMD_LONG : LED_CMD_CLICK;
+            c.dt = dt;
+
+            if (NULL != led_queue)                       /* 队列没建好就丢弃（防启动竞态） */
+            {
+                (void)osMessageQueuePut(led_queue, &c, 0U, 0U);   /* 发给 LED 任务 */
+            }
+
         }
     }
 }

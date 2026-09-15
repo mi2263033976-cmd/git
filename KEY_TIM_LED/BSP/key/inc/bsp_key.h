@@ -30,7 +30,7 @@
 #include <stdint.h>       /* 编译器提供的通用库包含部分 */
 #include "main.h"         /* 引脚宏定义 */
 #include "cmsis_os.h"      /* FreeRTOS API: osMessageQueueNew() / osThreadNew() / osDelay() */
-
+#include "bsp_led.h"           /* led_state_t */
 
 //******************************* Includes *******************************//
 

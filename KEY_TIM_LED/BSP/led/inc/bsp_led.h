@@ -32,20 +32,28 @@
 #include "tim.h"           /* TIM_HandleTypeDef htim2; */
 #include "freertos.h"       /* FreeRTOS API: osMessageQueueNew() / osThreadNew() / osDelay() */
 #include "task.h"
-
+#include "cmsis_os.h"      /* FreeRTOS API: osMessageQueueNew() / osThreadNew() / osDelay() */
 //******************************* Includes *******************************//
 
 //******************************** Defines **********************************//
 #define LED_LONG_TOGGLE 20U
 #define LED_CLICK_TOGGLE 2U
 
+/* 命令码：由 key_task_func 判定产生，交给 led_task_func 执行 */
+#define LED_CMD_CLICK   1U      /* 单击：闪 1 次 */
+#define LED_CMD_LONG    2U      /* 长按：闪 10 次 */
+
+extern osMessageQueueId_t led_queue;    /* 定义在 bsp_led.c */
+
+
+
 /* LED 状态枚举 */
-typedef enum
+/* 命令：要做什么 + 判定依据（dt 仅供日志/调试） */
+typedef struct
 {
-    LED_OFF       = 0,          /* 熄灭                          */
-    LED_ON        = 1,          /* 点亮                          */
-    LED_RESERVED  = 0x7FFFFFFF  /* Reserved                      */
-} led_state_t;
+    uint16_t cmd;      /* LED_CMD_CLICK / LED_CMD_LONG */
+    uint32_t dt;       /* 按下时长(ms) */
+} led_cmd_t;
 
 
 
@@ -53,49 +61,11 @@ typedef enum
 
 //******************************** Declaring ********************************//
 
-/**
- * @brief Reads the current LED state from the GPIO pin.
- *
- * Steps:
- *
- * 1. Reads the GPIO input level of the LED pin.
- * 2. Maps the level to LED_ON / LED_OFF with the polarity macro.
- *
- * @return led_state_t : LED_ON / LED_OFF.
- *
- */
-led_state_t led_get(void);
-
-/**
- * @brief Sets the LED to a target state.
- *
- * Steps:
- *
- * 1. Validates the input state.
- * 2. Writes the mapped GPIO level to the LED pin.
- *
- * @param[in] led_state : LED_ON / LED_OFF.
- *
- * @return led_state_t : The applied state, or current state if invalid.
- *
- */
-led_state_t led_set(led_state_t led_state);
-
-/**
- * @brief Toggles the LED and returns the new state.
- *
- * Steps:
- *
- * 1. Reads the current state.
- * 2. Writes the opposite state.
- *
- * @return led_state_t : New state after toggling (LED_ON / LED_OFF).
- *
- */
-led_state_t led_toggle(void);
-
 void led_blink_start(uint16_t toggles);
+
 void led_blink_tick_handler(void);
+
+void led_task_func(void *argument);
 
 //******************************** Declaring ********************************//
 

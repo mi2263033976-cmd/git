@@ -31,7 +31,7 @@
 - [x] Step 2：`BSP/led` 补 `led_blink_start()`（临界区版）+ `led_blink_tick_handler()`；`main.c` 的 `USER CODE BEGIN Callback 1` 挂 TIM2 分支
 - [x] Step 3：`BSP/key` 定义 `key_event_t { edge, tick }` + 切沿宏 + `HAL_GPIO_EXTI_Callback()`（记 tick / 切沿 / 发队列），串口验证 FALL/RISE ✅
 - [x] Step 4：`key_task_func()`：`t2−t1` 判单击/长按；`dt < 20ms` 毛刺丢弃；串口验证 `dt -> CLICK/LONG` ✅
-- [ ] Step 5：`led_task_func()` 收命令 → 启动 TIM2；验证短按闪 1 次、长按闪 10 次
+- [x] Step 5：`led_task_func()` 收命令（`led_cmd_t { cmd, dt }`）→ `led_blink_start()` 启动 TIM2；验证短按闪 1 次、长按闪 10 次 ✅
 - [ ] Step 6：全量验证 + 边界测试（快速连按 / 按住不放 / 闪烁中再按）+ git 提交
 
 ### 设计要点（与中断版旧工程 `Key_ISR_ctrl_led` 的区别）
@@ -46,6 +46,7 @@
 
 - 串口验证需外接 USB-TTL 模块（板上 Type-C 直连 MCU，无 USB-TTL 芯片）
 - 闪烁期间的新按键按设计被忽略（不打断当前闪烁）
+- **日志归口（设计决定）**：命令的执行结果只由 LED 侧输出 —— 空闲时 `[LED] CLICK dt=120 -> blink 2 toggles`，忙时 `[LED] busy -> cmd CLICK ignored`；按键侧不再打印判定结果，避免出现"检测成功但实际被忽略"的误导日志
 
 ### 待优化（工程完成后再做，向企业级靠拢）
 

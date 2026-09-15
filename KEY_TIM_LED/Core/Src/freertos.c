@@ -166,7 +166,7 @@ void Key_task(void *argument)
 void Ledtask(void *argument)
 {
   /* USER CODE BEGIN Ledtask */
-  led_blink_start(LED_LONG_TOGGLE);
+  led_task_func(NULL);   /* 任务函数在 bsp_led.c 里实现，方便移植 */
   /* Infinite loop */
   for(;;)
   {

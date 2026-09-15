@@ -35,51 +35,11 @@
 #define LED_OFF_LEVEL    GPIO_PIN_SET
 
 static volatile uint16_t g_blink_toggles = 0U  ;
+
+extern osMessageQueueId_t LED_QueueHandle;    /* 定义在 bsp_led.c */
 //******************************** Defines **********************************//
 
 //******************************** Functions ********************************//
-
-led_state_t led_get(void)
-{
-    if (LED_ON_LEVEL == HAL_GPIO_ReadPin(LED_GPIO_Port, LED_Pin))
-    {
-        return LED_ON;
-    }
-
-    return LED_OFF;
-}
-
-led_state_t led_set(led_state_t led_state)
-{
-    if (LED_ON == led_state)
-    {
-        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, LED_ON_LEVEL);
-    }
-    else if (LED_OFF == led_state)
-    {
-        HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, LED_OFF_LEVEL);
-    }
-    else
-    {
-        return led_get();           /* 非法参数：不改动硬件，返回当前状态 */
-    }
-
-    return led_state;
-}
-
-led_state_t led_toggle(void)
-{
-    if (LED_ON == led_get())
-    {
-        led_set(LED_OFF);
-    }
-    else
-    {
-        led_set(LED_ON);
-    }
-
-    return led_get();
-}
 
 void led_blink_start(uint16_t toggles)
 {
@@ -101,6 +61,43 @@ void led_blink_tick_handler(void)
     if (0U == g_blink_toggles)
     {
         HAL_TIM_Base_Stop_IT(&htim2);             /* 闪完自停：不占中断 */
+    }
+}
+
+osMessageQueueId_t led_queue = NULL;      /* 与 bsp_key.c 里的 key_queue 同理 */
+
+void led_task_func(void *argument)
+{
+    led_cmd_t c;
+    (void)argument;
+
+    led_queue = osMessageQueueNew(4U, sizeof(led_cmd_t), NULL);
+
+    for (;;)
+    {
+        if (osOK != osMessageQueueGet(led_queue, &c, NULL, osWaitForever))
+        {
+            continue;
+        }
+
+        if (g_blink_toggles > 0U)          /* 正在闪 → 忽略新命令（设计决定） */
+        {
+            log_printf("[LED] busy -> cmd %s ignored\r\n", 
+                (LED_CMD_LONG == c.cmd) ? "LONG" : "CLICK");   /* ★ 如实记录"被忽略" */
+            continue;
+        }
+
+        log_printf("[LED] %s dt=%lu -> blink %u toggles\r\n",
+                   (LED_CMD_LONG == c.cmd) ? "LONG" : "CLICK",
+                   (unsigned long)c.dt,
+                   (LED_CMD_LONG == c.cmd) ? LED_LONG_TOGGLE : LED_CLICK_TOGGLE);
+
+        switch (c.cmd)
+        {
+        case LED_CMD_CLICK: led_blink_start(LED_CLICK_TOGGLE);  break;   /* 闪 1 次 */
+        case LED_CMD_LONG:  led_blink_start(LED_LONG_TOGGLE);   break;   /* 闪 10 次 */
+        default: break;
+        }
     }
 }
 
