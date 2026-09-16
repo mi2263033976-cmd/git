@@ -32,7 +32,21 @@
 - [x] Step 3：`BSP/key` 定义 `key_event_t { edge, tick }` + 切沿宏 + `HAL_GPIO_EXTI_Callback()`（记 tick / 切沿 / 发队列），串口验证 FALL/RISE ✅
 - [x] Step 4：`key_task_func()`：`t2−t1` 判单击/长按；`dt < 20ms` 毛刺丢弃；串口验证 `dt -> CLICK/LONG` ✅
 - [x] Step 5：`led_task_func()` 收命令（`led_cmd_t { cmd, dt }`）→ `led_blink_start()` 启动 TIM2；验证短按闪 1 次、长按闪 10 次 ✅
-- [ ] Step 6：全量验证 + 边界测试（快速连按 / 按住不放 / 闪烁中再按）+ git 提交
+- [x] Step 6：全量验证 + 边界测试（快速连按 / 按住不放 / 闪烁中再按）+ git 提交 ✅
+
+### 实测日志（Step 6 验收留档）
+
+```
+boot
+[LED] CLICK dt=1xx -> blink 2 toggles       ← 轻点一下：灯闪 1 次（亮→灭 ≈200ms）
+[LED] LONG  dt=15xx -> blink 20 toggles     ← 按住 1.5s 后松开：灯连闪 10 次（≈2s）
+[LED] busy -> cmd CLICK ignored             ← 闪烁期间再按：灯不受影响（按设计忽略）
+```
+
+- 上电只出 `boot`，灯不闪；
+- 按住 3s 不放 → 串口无输出、灯不动，**松手那一刻**才连闪 10 次；
+- 快速连按 5 次 → 每次都闪 1 次，不丢键；
+- 全部与预期一致，无异常现象。
 
 ### 设计要点（与中断版旧工程 `Key_ISR_ctrl_led` 的区别）
 
