@@ -94,6 +94,9 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
+  /* 【临时·Step 1 验证】直接起 PWM 看 PA6 波形；Step 3 会把它移进 led_pwm_blink_start() */
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
