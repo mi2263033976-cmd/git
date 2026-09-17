@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "bsp_led.h"         /* LED_PWM_PERIOD / LED_PWM_DUTY / led_pwm_blink_start() */
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

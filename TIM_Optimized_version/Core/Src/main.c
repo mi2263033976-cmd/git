@@ -94,8 +94,8 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
-  /* 【临时·Step 1 验证】直接起 PWM 看 PA6 波形；Step 3 会把它移进 led_pwm_blink_start() */
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  led_pwm_blink_start(4); //测试，闪4次
+  
 
   /* USER CODE END 2 */
 
@@ -187,8 +187,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   {
     HAL_IncTick();
   }
-  /* USER CODE BEGIN Callback 1 */
 
+
+  /* USER CODE BEGIN Callback 1 */
+  if (htim->Instance == TIM3)
+  {
+
+    led_pwm_tick_handler();
+	  
+  }
   /* USER CODE END Callback 1 */
 }
 
