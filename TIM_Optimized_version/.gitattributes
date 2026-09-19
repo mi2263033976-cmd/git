@@ -1,0 +1,29 @@
+# 统一行尾，避免 CubeMX 每次重新生成后出现上千个"假改动"
+# （CubeMX 生成的文件是 LF，而此前入库的版本是 CRLF）
+* text=auto
+
+# 源码：入库统一用 LF
+*.c     text eol=lf
+*.h     text eol=lf
+*.s     text eol=lf
+*.S     text eol=lf
+*.ioc   text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+
+# Keil 工程与个人设置：交给 git 按二进制比较，不做行尾转换
+*.uvprojx   -text
+*.uvoptx    -text
+*.uvguix*   -text
+
+# 编译产物 / 二进制：明确不做任何转换
+*.axf   -text
+*.elf   -text
+*.hex   -text
+*.bin   -text
+*.o     -text
+*.crf   -text
+*.pdf   -text
+*.png   -text
+*.jpg   -text
+*.zip   -text
