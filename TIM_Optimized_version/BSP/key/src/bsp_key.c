@@ -49,10 +49,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
    }
 }
 
+/* 队列内存（静态分配）：控制块 cb + 存储区 mem */
+static StaticQueue_t key_queue_cb;
+static uint8_t       key_queue_mem[10U * sizeof(key_event_t)];
 
 key_status_t key_init(void) //(建队列）
 {
-    key_queue = xQueueCreate(10U,sizeof(key_event_t));
+    key_queue = xQueueCreateStatic(10U, sizeof(key_event_t), key_queue_mem, &key_queue_cb);
     return (NULL == key_queue) ? KEY_ERRORRESOURCE : KEY_OK;
 }
 

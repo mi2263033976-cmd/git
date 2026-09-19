@@ -38,9 +38,13 @@ void led_pwm_tick_handler(void)
     }
 }
 
-led_status_t led_init(void)//（建队列并返回状态）
+/* 队列内存（静态分配）：控制块 cb + 存储区 mem */
+static StaticQueue_t led_queue_cb;
+static uint8_t       led_queue_mem[4U * sizeof(led_cmd_t)];
+
+led_status_t led_init(void) /* 建队列并返回状态 */
 {
-    led_queue = xQueueCreate(4U, sizeof(led_cmd_t));
+    led_queue = xQueueCreateStatic(4U, sizeof(led_cmd_t), led_queue_mem, &led_queue_cb);
     return (NULL == led_queue) ? LED_ERRORRESOURCE : LED_OK;
 }
 

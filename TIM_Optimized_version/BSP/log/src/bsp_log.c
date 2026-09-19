@@ -24,9 +24,13 @@ static volatile log_level_t g_log_level = LOG_INFO;    /* 默认 INFO 档 */
 //******************************** Functions ********************************//
 QueueHandle_t log_queue = NULL;
 
+/* 队列内存（静态分配）：控制块 cb + 存储区 mem */
+static StaticQueue_t log_queue_cb;
+static uint8_t       log_queue_mem[10U * sizeof(log_item_t)];
+
 log_status_t log_init(void)
 {
-    log_queue = xQueueCreate(10U,sizeof(log_item_t));
+    log_queue = xQueueCreateStatic(10U, sizeof(log_item_t), log_queue_mem, &log_queue_cb);
     return (NULL == log_queue) ?  LOG_ERRORRESOURCE : LOG_OK;
 }
 

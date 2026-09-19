@@ -47,24 +47,31 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+/* 任务内存（静态分配）：栈数组 + 控制块 TCB
+   ⚠️ 栈数组必须 8 字节对齐！本工程 FreeRTOS 的 portBYTE_ALIGNMENT = 8，
+      prvInitialiseNewTask() 里有 configASSERT((pxStack & 7) == 0) 检查；
+      动态分配时 pvPortMalloc 会自动对齐，静态分配就得自己声明 */
+__align(8) static StackType_t ledTaskStack[256];      /* 256 word = 1KB */
+static StaticTask_t ledTaskTCB;
 TaskHandle_t ledTaskHandle = NULL;
+
+__align(8) static StackType_t keyTaskStack[128];      /* 128 word = 512B */
+static StaticTask_t keyTaskTCB;
 TaskHandle_t keyTaskHandle = NULL;
+
+__align(8) static StackType_t logTaskStack[256];
+static StaticTask_t logTaskTCB;
 TaskHandle_t logTaskHandle = NULL;
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
-osThreadId_t defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = {
-  .name = "defaultTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
+
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+extern void xPortSysTickHandler(void);   /* FreeRTOS 的 tick 处理，定义在 port.c；头文件未暴露原型，这里自己声明 */
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void *argument);
+
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -99,27 +106,21 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  if (pdPASS != xTaskCreate(led_task_func, "LEDTask", 128, NULL, 
-      tskIDLE_PRIORITY + 3, &ledTaskHandle))
-{
-  Error_Handler();
-}
+  ledTaskHandle = xTaskCreateStatic(led_task_func, "LEDTask", 256, NULL,
+                                  tskIDLE_PRIORITY + 3, ledTaskStack, &ledTaskTCB);
+  if (NULL == ledTaskHandle) { Error_Handler(); }
 
-  if(pdPASS != xTaskCreate(key_task_func, "KeyTask", 128, NULL, 
-      tskIDLE_PRIORITY + 5, &keyTaskHandle))
-  {
-    Error_Handler();
-  }
+  keyTaskHandle = xTaskCreateStatic(key_task_func,"KEYTask",128,NULL,
+                                    tskIDLE_PRIORITY + 5,keyTaskStack,&keyTaskTCB);
+  if(NULL == keyTaskHandle){Error_Handler();}
 
-  if(pdPASS != xTaskCreate(log_task_func, "LogTask", 256, NULL, 
-      tskIDLE_PRIORITY + 7, &logTaskHandle))
-  {
-    Error_Handler();
-  }
+  logTaskHandle = xTaskCreateStatic(log_task_func, "LogTask", 256, NULL,
+                                  tskIDLE_PRIORITY + 7, logTaskStack, &logTaskTCB);
+  if (NULL == logTaskHandle) { Error_Handler(); }
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -129,25 +130,55 @@ void MX_FREERTOS_Init(void) {
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
-/**
-  * @brief  Function implementing the defaultTask thread.
-  * @param  argument: Not used
-  * @retval None
-  */
+
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
-{
+
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+
   /* USER CODE END StartDefaultTask */
-}
+
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
+                                   StackType_t  **ppxIdleTaskStackBuffer,
+                                   uint32_t      *pulIdleTaskStackSize)
+{
+    /* ⚠️ 栈数组同样必须 8 字节对齐（理由见 USER CODE BEGIN Variables 处的注释） */
+    __align(8) static StaticTask_t xIdleTaskTCB;
+    __align(8) static StackType_t  uxIdleTaskStack[configMINIMAL_STACK_SIZE];   /* = 128 word */
 
+    *ppxIdleTaskTCBBuffer   = &xIdleTaskTCB;
+    *ppxIdleTaskStackBuffer = uxIdleTaskStack;
+    *pulIdleTaskStackSize   = configMINIMAL_STACK_SIZE;
+}
+
+void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
+                                    StackType_t  **ppxTimerTaskStackBuffer,
+                                    uint32_t      *pulTimerTaskStackSize)
+{
+    __align(8) static StaticTask_t xTimerTaskTCB;
+    __align(8) static StackType_t  uxTimerTaskStack[configTIMER_TASK_STACK_DEPTH];  /* = 256 word */
+
+    *ppxTimerTaskTCBBuffer   = &xTimerTaskTCB;
+    *ppxTimerTaskStackBuffer = uxTimerTaskStack;
+    *pulTimerTaskStackSize   = configTIMER_TASK_STACK_DEPTH;
+}
+
+/* FreeRTOS 的 tick 中断处理。
+   ⚠️ 原来定义在 cmsis_os2.c 里，移除那个文件后必须自己提供；
+      否则 SysTick 中断会回落到启动文件的 Default_Handler（死循环）→ 一进中断整机卡死。
+   注：本工程 HAL 时基是 TIM1（main.c 的 HAL_TIM_PeriodElapsedCallback 里调 HAL_IncTick），
+       所以这里不需要调 HAL_IncTick()。 */
+void SysTick_Handler(void)
+{
+    SysTick->CTRL;      /* 读一下 CTRL 即可清除 SysTick 的溢出标志 */
+
+    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+    {
+        xPortSysTickHandler();
+    }
+}
 /* USER CODE END Application */
 
