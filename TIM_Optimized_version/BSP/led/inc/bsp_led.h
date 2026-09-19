@@ -7,6 +7,7 @@
 #include "FreeRTOS.h"    /* ← 必须第一个 */
 #include "task.h"        /* taskENTER_CRITICAL */
 #include "queue.h"       /* QueueHandle_t */
+#include "bsp_log.h"    /* LOG_I() */
 
 //******************************* Includes *******************************//
 

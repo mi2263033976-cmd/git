@@ -55,12 +55,18 @@ void led_task_func(void *argument)//（阻塞等命令 → 判忙 → 起闪）
 	{
 		if (pdTRUE != xQueueReceive(led_queue, &c, portMAX_DELAY))  /* 阻塞等命令 */
 		{
+            
 			continue;
 		}
         if (g_pwm_cycles > 0U) 
         { 
+            LOG_I("LED", "busy -> cmd %s ignored", (LED_CMD_LONG == c.cmd) ? "LONG" : "CLICK");
             continue;
         }   /* 还在闪 → 丢掉这条，回去等新命令 */
+        LOG_I("LED", "%s dt=%lu -> blink %u",
+        (LED_CMD_LONG == c.cmd) ? "LONG" : "CLICK",
+        (unsigned long)c.dt,
+        (LED_CMD_LONG == c.cmd) ? LED_LONG_CYCLES : LED_CLICK_CYCLES);
 		if (LED_CMD_CLICK == c.cmd)
 		{
 			led_pwm_blink_start(LED_CLICK_CYCLES);

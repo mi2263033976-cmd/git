@@ -62,6 +62,7 @@ void key_task_func(void *argument)
    key_event_t evt;
    uint16_t has_press = 0U;
    key_event_t press_evt = { .edge = KEY_EDGE_FALL, .tick = 0U};
+
    for(;;)
    {
       if(pdTRUE != xQueueReceive(key_queue,&evt,portMAX_DELAY))
