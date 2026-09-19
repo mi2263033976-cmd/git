@@ -1,3 +1,32 @@
+/******************************************************************************
+ * Copyright (C) 2026 <BUBUGou>
+ *
+ * All Rights Reserved.
+ *
+ * @file bsp_log.h
+ *
+ * @par dependencies
+ * - stdio.h / stdarg.h             snprintf、va_list
+ * - FreeRTOS.h / task.h / queue.h  QueueHandle_t
+ * - usart.h                        huart1
+ *
+ * @author <BUBUGou> | <班级/部门> | <学校/公司>
+ *
+ * @brief 日志：分级 + 队列 + 独占串口任务（调用者不阻塞、输出不交叉）。
+ *
+ * Processing flow:
+ *
+ * 调用者用 LOG_E/W/I/D 宏 → 先判等级，够则 log_post() 当场把参数格式化成
+ * log_item_t 并入队（≈µs，绝不阻塞）→ LogTask 从 log_queue 取出条目，
+ * 拼成 "[tick][等级][模块] 正文" 独占串口输出。全工程只有 LogTask 写串口，
+ * 因此多任务日志天然不交叉。
+ *
+ * @version V2.0 2026-09-19
+ *
+ * @note 1 tab == 4 spaces!
+ *
+ *****************************************************************************/
+
 #ifndef __BSP_LOG_H__
 #define __BSP_LOG_H__
 //******************************* Includes *******************************//

@@ -1,3 +1,31 @@
+/******************************************************************************
+ * Copyright (C) 2026 <BUBUGou>
+ *
+ * All Rights Reserved.
+ *
+ * @file bsp_key.h
+ *
+ * @par dependencies
+ * - main.h / tim.h                 KEY_Pin 宏（PA0）
+ * - FreeRTOS.h / task.h / queue.h  QueueHandle_t
+ * - bsp_led.h                      led_cmd_t（发给 LED 的命令）
+ *
+ * @author <BUBUGou> | <班级/部门> | <学校/公司>
+ *
+ * @brief 按键：EXTI 切沿免抖 + 边沿事件队列（按下/松开各产生一个事件）。
+ *
+ * Processing flow:
+ *
+ * HAL_GPIO_EXTI_Callback() 在中断里取 tick、切沿（FTSR/RTSR 二选一）并
+ * 把事件发给 key_queue；KEYTask 用状态机（按下记 t1、松开算 dt）判定
+ * CLICK / LONG，再向 led_queue 发 led_cmd_t。
+ *
+ * @version V2.0 2026-09-19
+ *
+ * @note 1 tab == 4 spaces!
+ *
+ *****************************************************************************/
+
 #ifndef __BSP_KEY_H__
 #define __BSP_KEY_H__
 

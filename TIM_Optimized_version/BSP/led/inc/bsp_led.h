@@ -1,3 +1,31 @@
+/******************************************************************************
+ * Copyright (C) 2026 <BUBUGou>
+ *
+ * All Rights Reserved.
+ *
+ * @file bsp_led.h
+ *
+ * @par dependencies
+ * - main.h / tim.h                 LED_Pin 宏、TIM3 句柄 htim3
+ * - FreeRTOS.h / task.h / queue.h  QueueHandle_t、taskENTER_CRITICAL
+ * - bsp_log.h                      日志宏 LOG_I()
+ *
+ * @author <BUBUGou> | <班级/部门> | <学校/公司>
+ *
+ * @brief LED 控制：用 TIM3_CH1 硬件 PWM 驱动（PA6 ──杜邦线── PC13 板载蓝灯）。
+ *
+ * Processing flow:
+ *
+ * led_init() 在 MX_FREERTOS_Init() 中被调用（调度器启动前建好队列）；
+ * LEDTask 阻塞等待 led_queue 的命令，收到后按 CLICK / LONG 调
+ * led_pwm_blink_start(cycles)；"闪 N 次自停"由 TIM3 更新中断计数实现。
+ *
+ * @version V2.0 2026-09-19
+ *
+ * @note 1 tab == 4 spaces!
+ *
+ *****************************************************************************/
+
 #ifndef __BSP_LED_H
 #define __BSP_LED_H
 //******************************* Includes *******************************//
