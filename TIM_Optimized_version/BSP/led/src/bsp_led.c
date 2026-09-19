@@ -50,11 +50,6 @@ void led_task_func(void *argument)//（阻塞等命令 → 判忙 → 起闪）
 {
     led_cmd_t c;
     (void) argument;
-	//测试用
-	led_cmd_t t1 = { .cmd = LED_CMD_LONG,  .dt = 0U };
-	led_cmd_t t2 = { .cmd = LED_CMD_CLICK, .dt = 0U };
-	(void)xQueueSendToBack(led_queue, &t1, 0U);
-	(void)xQueueSendToBack(led_queue, &t2, 0U);
 	
 	for(;;)
 	{

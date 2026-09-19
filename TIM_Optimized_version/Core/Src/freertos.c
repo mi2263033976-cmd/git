@@ -26,6 +26,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp_led.h"
+#include "bsp_key.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,6 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 TaskHandle_t ledTaskHandle = NULL;
+TaskHandle_t keyTaskHandle = NULL;
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -89,6 +91,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   (void)led_init();
+  (void)key_init();
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -102,6 +105,12 @@ void MX_FREERTOS_Init(void) {
 {
   Error_Handler();
 }
+
+  if(pdPASS != xTaskCreate(key_task_func, "KeyTask", 128, NULL, 
+      tskIDLE_PRIORITY + 5, &keyTaskHandle))
+  {
+    Error_Handler();
+  }
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
